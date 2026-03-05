@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CertChain — Immutable Academic Credentials</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            base:    '#060b18',
+            surface: '#0d1526',
+            panel:   '#111e36',
+            border:  '#1e3054',
+            muted:   '#2a4068',
+            slate:   '#4d6a96',
+            dim:     '#7a9ac0',
+            text:    '#c8d8ee',
+            bright:  '#e8f0fb',
+            cyan:    '#00d4ff',
+            blue:    '#2563eb',
+            neon:    '#0ea5e9',
+            green:   '#10b981',
+            red:     '#ef4444',
+          },
+          fontFamily: {
+            display: ['Syne', 'sans-serif'],
+            body:    ['Outfit', 'sans-serif'],
+            mono:    ['IBM Plex Mono', 'monospace'],
+          },
+          animation: {
+            'fade-in':      'fadeIn 0.5s ease forwards',
+            'slide-up':     'slideUp 0.55s ease forwards',
+            'pulse-ring':   'pulseRing 2s ease-in-out infinite',
+            'scan':         'scan 3s linear infinite',
+            'float':        'float 6s ease-in-out infinite',
+            'glow-pulse':   'glowPulse 3s ease-in-out infinite',
+          },
+          keyframes: {
+            fadeIn:    { from: { opacity: '0' },                     to: { opacity: '1' } },
+            slideUp:   { from: { opacity: '0', transform: 'translateY(24px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+            pulseRing: { '0%,100%': { boxShadow: '0 0 0 0 rgba(0,212,255,0.25)' }, '50%': { boxShadow: '0 0 0 12px rgba(0,212,255,0)' } },
+            scan:      { from: { transform: 'translateY(-100%)' },   to: { transform: 'translateY(400%)' } },
+            float:     { '0%,100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-12px)' } },
+            glowPulse: { '0%,100%': { opacity: '0.5' },              '50%': { opacity: '1' } },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: #060b18;
+      color: #c8d8ee;
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #060b18; }
+    ::-webkit-scrollbar-thumb { background: #1e3054; border-radius: 3px; }
+
+    /* ── Grid bg ── */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    /* ── Radial glow ── */
+    .glow-blue  { background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(37,99,235,0.35) 0%, transparent 70%); }
+    .glow-cyan  { background: radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0,212,255,0.12) 0%, transparent 70%); }
+
+    /* ── Glassmorphism panel ── */
+    .glass {
+      background: rgba(13,21,38,0.75);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(30,48,84,0.9);
+    }
+
+    /* ── Neon border accent ── */
+    .neon-border {
+      border: 1px solid rgba(0,212,255,0.3);
+      box-shadow: 0 0 20px rgba(0,212,255,0.08), inset 0 0 20px rgba(0,212,255,0.03);
+    }
+
+    /* ── Nav link ── */
+    .nav-link {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #7a9ac0;
+      cursor: pointer;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .nav-link:hover { color: #00d4ff; }
+    .nav-link.active { color: #00d4ff; }
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 2px;
+      background: #00d4ff;
+      border-radius: 2px;
+      box-shadow: 0 0 8px #00d4ff;
+    }
+
+    /* ── Primary button ── */
+    .btn-primary {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.8rem 1.75rem;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 24px rgba(14,165,233,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover::before { opacity: 1; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(14,165,233,0.45); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* ── Ghost button ── */
+    .btn-ghost {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.8rem 1.75rem;
+      border-radius: 8px;
+      background: transparent;
+      color: #00d4ff;
+      border: 1px solid rgba(0,212,255,0.35);
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .btn-ghost:hover {
+      background: rgba(0,212,255,0.08);
+      border-color: #00d4ff;
+      box-shadow: 0 0 20px rgba(0,212,255,0.2);
+      transform: translateY(-2px);
+    }
+
+    /* ── Form input ── */
+    .form-input {
+      width: 100%;
+      background: rgba(6,11,24,0.8);
+      border: 1px solid #1e3054;
+      border-radius: 8px;
+      padding: 0.85rem 1.1rem;
+      color: #e8f0fb;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input::placeholder { color: #4d6a96; }
+    .form-input:focus {
+      border-color: rgba(0,212,255,0.5);
+      box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+    }
+
+    /* ── Label ── */
+    .form-label {
+      display: block;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #4d6a96;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── View section ── */
+    .view { display: none; }
+    .view.active { display: block; animation: fadeIn 0.4s ease forwards; }
+
+    /* ── Hash display ── */
+    .hash-text {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.82rem;
+      word-break: break-all;
+      color: #00d4ff;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Scan line for loading ── */
+    .scan-line {
+      position: absolute;
+      inset-x: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+      animation: scan 1.5s linear infinite;
+    }
+
+    /* ── Copy button ── */
+    .copy-btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      color: #4d6a96;
+      background: transparent;
+      border: 1px solid #1e3054;
+      border-radius: 5px;
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { color: #00d4ff; border-color: rgba(0,212,255,0.4); }
+    .copy-btn.copied { color: #10b981; border-color: rgba(16,185,129,0.4); }
+
+    /* ── Stat chip ── */
+    .stat-chip {
+      background: rgba(13,21,38,0.8);
+      border: 1px solid #1e3054;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+    }
+
+    /* ── Step card ── */
+    .step-card {
+      background: rgba(13,21,38,0.7);
+      border: 1px solid #1e3054;
+      border-radius: 12px;
+      padding: 1.75rem;
+      transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+    }
+    .step-card:hover {
+      border-color: rgba(0,212,255,0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 30px rgba(0,212,255,0.07);
+    }
+
+    /* ── Verified card ── */
+    .verified-card {
+      border: 1px solid rgba(16,185,129,0.4);
+      background: rgba(16,185,129,0.06);
+      box-shadow: 0 0 30px rgba(16,185,129,0.1);
+    }
+
+    /* ── Error card ── */
+    .error-card {
+      border: 1px solid rgba(239,68,68,0.4);
+      background: rgba(239,68,68,0.06);
+      box-shadow: 0 0 30px rgba(239,68,68,0.08);
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Floating orb ── */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+    }
+
+    /* ── Chain node animation ── */
+    @keyframes chainPulse {
+      0%,100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    .chain-node { animation: chainPulse 2s ease-in-out infinite; }
+    .chain-node:nth-child(2) { animation-delay: 0.4s; }
+    .chain-node:nth-child(3) { animation-delay: 0.8s; }
+
+    /* ── Tooltip ── */
+    .tooltip { position: relative; }
+    .tooltip-text {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0d1526;
+      border: 1px solid #1e3054;
+      color: #c8d8ee;
+      font-size: 0.72rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 5px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .tooltip:hover .tooltip-text { opacity: 1; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+       style="background: rgba(6,11,24,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(30,48,84,0.6);">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+
+      <button onclick="showView('home')" class="flex items-center gap-2.5 group">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" 
+             style="background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 0 16px rgba(14,165,233,0.4);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <span class="font-display font-800 text-bright text-lg tracking-tight">Cert<span style="color:#00d4ff">Chain</span></span>
+      </button>
+
+      <div class="hidden md:flex items-center gap-1">
+        <button class="nav-link active" id="nav-home" onclick="showView('home')">Home</button>
+        <button class="nav-link" id="nav-issue" onclick="showView('issue')">Issue Certificate</button>
+        <button class="nav-link" id="nav-verify" onclick="showView('verify')">Verify</button>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full" 
+             style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);">
+          <div class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
+          <span class="font-mono text-xs text-green-400" style="font-family:'IBM Plex Mono',monospace;">Mainnet Live</span>
+        </div>
+        <button class="btn-primary text-sm py-2 px-4" onclick="showView('issue')">Launch Portal</button>
+      </div>
+
+      <button class="md:hidden text-dim" onclick="toggleMobileMenu()" id="mobile-btn">
+        <svg id="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="mobile-menu" class="hidden md:hidden px-6 pb-4 flex flex-col gap-2" style="border-top: 1px solid #1e3054;">
+      <button class="nav-link text-left w-full mt-3" onclick="showView('home'); toggleMobileMenu()">Home</button>
+      <button class="nav-link text-left w-full" onclick="showView('issue'); toggleMobileMenu()">Issue Certificate</button>
+      <button class="nav-link text-left w-full" onclick="showView('verify'); toggleMobileMenu()">Verify</button>
+    </div>
+  </nav>
+
+  <main class="pt-16">
+
+    <div id="view-home" class="view active">
+
+      <section class="relative min-h-screen flex items-center overflow-hidden grid-bg">
+        <div class="orb w-96 h-96 -top-20 -right-20 opacity-30" style="background:#2563eb;"></div>
+        <div class="orb w-80 h-80 bottom-10 -left-20 opacity-20" style="background:#0ea5e9;"></div>
+        <div class="orb w-64 h-64 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10" style="background:#00d4ff;"></div>
+
+        <div class="glow-blue absolute inset-0 pointer-events-none"></div>
+
+        <div class="relative z-10 max-w-6xl mx-auto px-6 py-24 grid lg:grid-cols-2 gap-16 items-center">
+
+          <div style="animation: slideUp 0.7s ease forwards;">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-8"
+                 style="background:rgba(14,165,233,0.1); border:1px solid rgba(14,165,233,0.3);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" class="w-3.5 h-3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span class="font-mono text-xs text-neon" style="font-family:'IBM Plex Mono',monospace;">Blockchain-Secured · EVM Compatible</span>
+            </div>
+
+            <h1 class="font-display font-800 leading-none mb-6 text-bright"
+                style="font-family:'Syne',sans-serif; font-size: clamp(2.6rem, 5.5vw, 4.2rem); letter-spacing:-0.03em;">
+              Secure,<br/>
+              <span style="background: linear-gradient(135deg, #00d4ff, #2563eb); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Immutable</span><br/>
+              Academic<br/>Credentials.
+            </h1>
+
+            <p class="text-dim text-lg leading-relaxed mb-10 max-w-lg font-light">
+              Issue and verify tamper-proof certificates anchored to the blockchain. No intermediaries. No forgeries. Instant global verification.
+            </p>
+
+            <div class="flex flex-wrap gap-4">
+              <button class="btn-primary" onclick="showView('issue')">
+                <span class="flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  Issue Certificate
+                </span>
+              </button>
+              <button class="btn-ghost" onclick="showView('verify')">
+                <span class="flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-4 h-4">
+                    <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/>
+                  </svg>
+                  Verify Certificate
+                </span>
+              </button>
+            </div>
+
+            <div class="flex flex-wrap gap-4 mt-12">
+              <div class="stat-chip">
+                <div class="font-display font-700 text-xl text-bright" style="font-family:'Syne',sans-serif;">4,200+</div>
+                <div class="text-xs text-slate mt-0.5 uppercase tracking-wider" style="font-family:'Syne',sans-serif; font-weight:600; letter-spacing:0.1em;">Certs Issued</div>
+              </div>
+              <div class="stat-chip">
+                <div class="font-display font-700 text-xl text-bright" style="font-family:'Syne',sans-serif;">38</div>
+                <div class="text-xs text-slate mt-0.5 uppercase tracking-wider" style="font-family:'Syne',sans-serif; font-weight:600; letter-spacing:0.1em;">Universities</div>
+              </div>
+              <div class="stat-chip">
+                <div class="font-display font-700 text-xl text-bright" style="font-family:'Syne',sans-serif;">0</div>
+                <div class="text-xs text-slate mt-0.5 uppercase tracking-wider" style="font-family:'Syne',sans-serif; font-weight:600; letter-spacing:0.1em;">Forgeries</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hidden lg:flex justify-center items-center" style="animation: float 6s ease-in-out infinite;">
+            <div class="relative w-full max-w-sm">
+              <div class="absolute inset-0 rounded-2xl" style="background:radial-gradient(ellipse, rgba(0,212,255,0.15) 0%, transparent 70%); filter:blur(30px);"></div>
+
+              <div class="relative rounded-2xl p-6 neon-border glass" style="border-color: rgba(0,212,255,0.25);">
+                <div class="flex items-center justify-between mb-5">
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                         style="background:linear-gradient(135deg,#0ea5e9,#2563eb);">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs font-mono text-dim" style="font-family:'IBM Plex Mono',monospace;">CertChain Protocol</span>
+                  </div>
+                  <span class="text-xs px-2 py-1 rounded-full" style="background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.3);font-family:'IBM Plex Mono',monospace;">● VERIFIED</span>
+                </div>
+
+                <div class="space-y-3 mb-5">
+                  <div>
+                    <div class="text-xs text-slate mb-1 uppercase tracking-widest" style="font-family:'Syne',sans-serif;font-size:0.62rem;letter-spacing:0.12em;">Graduate</div>
+                    <div class="text-bright font-semibold text-lg" style="font-family:'Syne',sans-serif;">Arjun Sharma</div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="rounded-lg p-3" style="background:rgba(6,11,24,0.6);border:1px solid #1e3054;">
+                      <div class="text-slate text-xs mb-1" style="font-family:'Syne',sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;">Degree</div>
+                      <div class="text-text text-sm font-medium">B.Sc. CS</div>
+                    </div>
+                    <div class="rounded-lg p-3" style="background:rgba(6,11,24,0.6);border:1px solid #1e3054;">
+                      <div class="text-slate text-xs mb-1" style="font-family:'Syne',sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;">Year</div>
+                      <div class="text-text text-sm font-medium">2024</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pt-4" style="border-top:1px solid #1e3054;">
+                  <div class="text-slate text-xs mb-1.5" style="font-family:'Syne',sans-serif;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;">TX Hash</div>
+                  <div class="hash-text text-xs opacity-70">0x7f3a9c4b2e1d8f0a6c5b3e9d1f2a4c8b</div>
+                </div>
+
+                <div class="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none opacity-30">
+                  <div class="scan-line"></div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-center gap-2 mt-5">
+                <div class="chain-node w-2 h-2 rounded-full" style="background:#00d4ff;box-shadow:0 0 8px #00d4ff;"></div>
+                <div class="h-px flex-1" style="background:linear-gradient(90deg,#00d4ff,#2563eb);opacity:0.4;"></div>
+                <div class="chain-node w-2 h-2 rounded-full" style="background:#2563eb;box-shadow:0 0 8px #2563eb;"></div>
+                <div class="h-px flex-1" style="background:linear-gradient(90deg,#2563eb,#0ea5e9);opacity:0.4;"></div>
+                <div class="chain-node w-2 h-2 rounded-full" style="background:#0ea5e9;box-shadow:0 0 8px #0ea5e9;"></div>
+              </div>
+              <div class="text-center mt-2 text-xs text-slate font-mono" style="font-family:'IBM Plex Mono',monospace;">Block #19,847,233 · 12 confirmations</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="py-28 relative" style="background: rgba(13,21,38,0.5);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <p class="text-xs font-display font-700 tracking-widest mb-3" 
+               style="font-family:'Syne',sans-serif;color:#00d4ff;letter-spacing:0.2em;text-transform:uppercase;">How It Works</p>
+            <h2 class="font-display font-800 text-bright text-3xl md:text-4xl"
+                style="font-family:'Syne',sans-serif;letter-spacing:-0.02em;">
+              Three steps to permanent trust.
+            </h2>
+          </div>
+
+          <div class="grid md:grid-cols-3 gap-6 relative">
+            <div class="hidden md:block absolute top-12 left-1/3 right-1/3 h-px" 
+                 style="background:linear-gradient(90deg,transparent,rgba(0,212,255,0.3),transparent);"></div>
+
+            <div class="step-card">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                   style="background:rgba(14,165,233,0.12);border:1px solid rgba(14,165,233,0.25);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="1.8" class="w-6 h-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <div class="font-mono text-xs mb-2" style="font-family:'IBM Plex Mono',monospace;color:#2a4068;">Step 01</div>
+              <h3 class="font-display font-700 text-bright text-lg mb-3" style="font-family:'Syne',sans-serif;">Issue</h3>
+              <p class="text-dim text-sm leading-relaxed">University admins submit student data through the secure dashboard. Each credential is SHA-256 hashed and cryptographically signed.</p>
+            </div>
+
+            <div class="step-card" style="animation-delay:0.1s;">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                   style="background:rgba(37,99,235,0.12);border:1px solid rgba(37,99,235,0.25);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8" class="w-6 h-6">
+                  <rect x="2" y="7" width="20" height="14" rx="2"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+                  <line x1="12" y1="12" x2="12" y2="16"/>
+                  <line x1="10" y1="14" x2="14" y2="14"/>
+                </svg>
+              </div>
+              <div class="font-mono text-xs mb-2" style="font-family:'IBM Plex Mono',monospace;color:#2a4068;">Step 02</div>
+              <h3 class="font-display font-700 text-bright text-lg mb-3" style="font-family:'Syne',sans-serif;">Store</h3>
+              <p class="text-dim text-sm leading-relaxed">The credential hash is minted as an immutable record on-chain. No entity can alter or delete the record once written to the ledger.</p>
+            </div>
+
+            <div class="step-card" style="animation-delay:0.2s;">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                   style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="1.8" class="w-6 h-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+              </div>
+              <div class="font-mono text-xs mb-2" style="font-family:'IBM Plex Mono',monospace;color:#2a4068;">Step 03</div>
+              <h3 class="font-display font-700 text-bright text-lg mb-3" style="font-family:'Syne',sans-serif;">Verify</h3>
+              <p class="text-dim text-sm leading-relaxed">Employers paste a Certificate ID or transaction hash. The system queries the chain and returns a tamper-proof authenticity result in seconds.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="py-20 relative overflow-hidden">
+        <div class="orb w-96 h-96 -top-10 left-1/2 -translate-x-1/2 opacity-20" style="background:#0ea5e9;"></div>
+        <div class="max-w-3xl mx-auto px-6 text-center relative z-10">
+          <h2 class="font-display font-800 text-bright mb-4" style="font-family:'Syne',sans-serif;font-size:clamp(1.8rem,4vw,2.8rem);letter-spacing:-0.02em;">
+            Ready to issue your first<br/><span style="color:#00d4ff;">on-chain credential?</span>
+          </h2>
+          <p class="text-dim mb-8 text-lg font-light max-w-xl mx-auto">Join 38 universities already issuing tamper-proof certificates. Setup takes under 5 minutes.</p>
+          <button class="btn-primary text-base" onclick="showView('issue')">Get Started — It's Free</button>
+        </div>
+      </section>
+
+    </div><div id="view-issue" class="view">
+      <section class="min-h-screen py-24 relative grid-bg">
+        <div class="orb w-80 h-80 top-20 right-10 opacity-20" style="background:#2563eb;"></div>
+
+        <div class="max-w-2xl mx-auto px-6 relative z-10">
+          <div class="mb-10" style="animation: slideUp 0.5s ease forwards;">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-1 h-8 rounded-full" style="background:linear-gradient(#00d4ff,#2563eb);"></div>
+              <p class="text-xs font-display font-700 tracking-widest" 
+                 style="font-family:'Syne',sans-serif;color:#00d4ff;letter-spacing:0.18em;text-transform:uppercase;">University Portal</p>
+            </div>
+            <h1 class="font-display font-800 text-bright text-3xl md:text-4xl mb-3"
+                style="font-family:'Syne',sans-serif;letter-spacing:-0.02em;">Issue Certificate</h1>
+            <p class="text-dim leading-relaxed">Complete the form below to mint an immutable academic credential to the blockchain. The generated hash serves as the permanent Certificate ID.</p>
+          </div>
+
+          <div class="glass rounded-2xl p-8 neon-border" style="animation: slideUp 0.6s ease 0.1s both;">
+            <form id="issue-form" onsubmit="handleIssue(event)">
+
+              <div class="mb-5">
+                <label class="form-label" for="student-name">Student Full Name</label>
+                <input class="form-input" id="student-name" type="text" placeholder="e.g. Arjun Sharma" required autocomplete="off"/>
+              </div>
+
+              <div class="mb-5">
+                <label class="form-label" for="degree">Degree / Qualification</label>
+                <input class="form-input" id="degree" type="text" placeholder="e.g. Bachelor of Science in Computer Science" required autocomplete="off"/>
+              </div>
+
+              <div class="mb-5">
+                <label class="form-label" for="university">Issuing University</label>
+                <input class="form-input" id="university" type="text" placeholder="e.g. Vishwakarma Institute of Technology" required autocomplete="off"/>
+              </div>
+
+              <div class="mb-8">
+                <label class="form-label" for="year">Graduation Year</label>
+                <input class="form-input" id="year" type="number" placeholder="e.g. 2024" min="1900" max="2100" required/>
+              </div>
+
+              <button type="submit" class="btn-primary w-full text-base py-3.5" id="issue-btn">
+                <span id="issue-btn-text" class="flex items-center justify-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                  Mint to Blockchain
+                </span>
+              </button>
+
+            </form>
+
+            <div id="issue-loading" class="hidden mt-6 rounded-xl overflow-hidden relative" 
+                 style="border:1px solid rgba(14,165,233,0.25);background:rgba(14,165,233,0.05);">
+              <div class="scan-line"></div>
+              <div class="p-5 flex items-start gap-4">
+                <div class="spinner mt-0.5 flex-shrink-0"></div>
+                <div>
+                  <p class="text-neon font-display font-600 text-sm mb-1" style="font-family:'Syne',sans-serif;">Minting to Blockchain...</p>
+                  <p class="text-slate text-xs font-mono" style="font-family:'IBM Plex Mono',monospace;" id="loading-status">Broadcasting transaction · Waiting for confirmation</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="issue-result" class="hidden mt-6 rounded-xl p-5" style="border:1px solid rgba(16,185,129,0.35);background:rgba(16,185,129,0.06);">
+              <div class="flex items-center gap-2 mb-4">
+                <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                     style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" class="w-3.5 h-3.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+                <p class="font-display font-700 text-sm" style="font-family:'Syne',sans-serif;color:#34d399;">Certificate Minted Successfully</p>
+                <span class="ml-auto text-xs font-mono text-slate" id="result-block" style="font-family:'IBM Plex Mono',monospace;"></span>
+              </div>
+
+              <div class="rounded-lg p-4 mb-4" style="background:rgba(6,11,24,0.7);border:1px solid #1e3054;">
+                <div class="text-xs font-display font-700 tracking-widest text-slate mb-2" 
+                     style="font-family:'Syne',sans-serif;letter-spacing:0.12em;text-transform:uppercase;">Certificate ID (TX Hash)</div>
+                <div class="flex items-start gap-3">
+                  <div class="hash-text flex-1" id="result-hash"></div>
+                  <button class="copy-btn flex-shrink-0 tooltip" id="copy-btn" onclick="copyHash()">
+                    <span id="copy-btn-label">COPY</span>
+                    <span class="tooltip-text">Click to copy hash</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3" id="result-details"></div>
+
+              <div class="mt-4 pt-4 flex gap-3" style="border-top:1px solid rgba(30,48,84,0.8);">
+                <button class="btn-ghost flex-1 text-xs py-2" onclick="showView('verify')">Verify This Certificate →</button>
+                <button class="btn-primary flex-1 text-xs py-2" onclick="resetIssueForm()">Issue Another</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </div><div id="view-verify" class="view">
+      <section class="min-h-screen py-24 relative grid-bg">
+        <div class="orb w-80 h-80 top-20 left-10 opacity-20" style="background:#00d4ff;"></div>
+
+        <div class="max-w-2xl mx-auto px-6 relative z-10">
+          <div class="mb-10" style="animation: slideUp 0.5s ease forwards;">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-1 h-8 rounded-full" style="background:linear-gradient(#10b981,#0ea5e9);"></div>
+              <p class="text-xs font-display font-700 tracking-widest"
+                 style="font-family:'Syne',sans-serif;color:#10b981;letter-spacing:0.18em;text-transform:uppercase;">Verification Portal</p>
+            </div>
+            <h1 class="font-display font-800 text-bright text-3xl md:text-4xl mb-3"
+                style="font-family:'Syne',sans-serif;letter-spacing:-0.02em;">Verify Certificate</h1>
+            <p class="text-dim leading-relaxed">Paste a Certificate ID (transaction hash) below to instantly verify its authenticity on the blockchain. No account required.</p>
+          </div>
+
+          <div class="glass rounded-2xl p-8 neon-border mb-6" style="animation: slideUp 0.6s ease 0.1s both;">
+            <label class="form-label" for="verify-input">Certificate ID / Transaction Hash</label>
+            <div class="flex gap-3 mt-1">
+              <input class="form-input flex-1" id="verify-input" type="text"
+                     placeholder="0x8f4b2a1c3e9d7f5b..." 
+                     style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;"
+                     onkeydown="if(event.key==='Enter') handleVerify()"/>
+              <button class="btn-primary flex-shrink-0 px-5" onclick="handleVerify()" id="verify-btn">
+                <span id="verify-btn-text" class="flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-4 h-4">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/>
+                  </svg>
+                  Verify
+                </span>
+              </button>
+            </div>
+            <p class="text-xs text-slate mt-3 font-mono" style="font-family:'IBM Plex Mono',monospace;">
+              Tip: Issue a certificate first, then copy its hash here to test verification.
+            </p>
+          </div>
+
+          <div id="verify-result" class="hidden" style="animation: slideUp 0.4s ease forwards;"></div>
+
+          <div id="recent-certs-section" class="mt-8" style="display:none;">
+            <p class="form-label mb-3">Recently Issued on This Device</p>
+            <div id="recent-certs-list" class="space-y-2"></div>
+          </div>
+
+        </div>
+      </section>
+    </div></main>
+
+  <footer style="background:rgba(13,21,38,0.8);border-top:1px solid #1e3054;" class="py-8">
+    <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-6 h-6 rounded-md flex items-center justify-center"
+             style="background:linear-gradient(135deg,#0ea5e9,#2563eb);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" class="w-3 h-3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <span class="font-display font-700 text-bright text-sm" style="font-family:'Syne',sans-serif;">CertChain</span>
+      </div>
+      <p class="text-slate text-xs font-mono" style="font-family:'IBM Plex Mono',monospace;">
+        Simulated blockchain environment · For demo purposes
+      </p>
+      <div class="flex items-center gap-1.5">
+        <div class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
+        <span class="text-xs text-green-400 font-mono" style="font-family:'IBM Plex Mono',monospace;">Network: Simulated Mainnet</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
